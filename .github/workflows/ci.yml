@@ -1,0 +1,59 @@
+name: Moodle privacy contract
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  moodle:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        moodle: [MOODLE_405_STABLE, MOODLE_503_STABLE]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: [5432:5432]
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 3
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: plugin
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240
+        with:
+          php-version: '8.3'
+          ini-values: max_input_vars=5000
+          coverage: none
+      - name: Install the test tooling
+        run: composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci ci ^4
+      - name: Install isolated Moodle
+        run: ci/bin/moodle-plugin-ci install --plugin ./plugin --db-host=127.0.0.1
+        env:
+          DB: pgsql
+          MOODLE_BRANCH: ${{ matrix.moodle }}
+      - name: Syntax and plugin regression tests
+        run: |
+          php -l plugin/classes/privacy/provider.php
+          php -l plugin/tests/privacy/provider_test.php
+          ci/bin/moodle-plugin-ci phpunit
+      - name: Core privacy compliance
+        working-directory: moodle
+        run: |
+          code_dir=.
+          if [ -d public ]; then code_dir=public; fi
+          provider="$code_dir/privacy/tests/privacy/provider_test.php"
+          if [ ! -f "$provider" ]; then provider="$code_dir/privacy/tests/provider_test.php"; fi
+          test -f "$provider"
+          vendor/bin/phpunit --fail-on-risky --disallow-test-output --filter mod_msteams \
+            --log-junit ../privacy.xml "$provider"
+          php -r '$x = simplexml_load_file("../privacy.xml"); $n = count($x->xpath("//testcase[not(skipped)]")); if ($n === 0) { fwrite(STDERR, "No privacy tests executed\n"); exit(1); } echo "Executed $n privacy cases\n";'
