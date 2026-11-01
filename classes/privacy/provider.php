@@ -41,7 +41,9 @@ class provider implements
      * @param \core_privacy\local\metadata\collection $collection Metadata collection.
      * @return \core_privacy\local\metadata\collection The populated collection.
      */
-    public static function get_metadata(\core_privacy\local\metadata\collection $collection): \core_privacy\local\metadata\collection {
+    public static function get_metadata(
+        \core_privacy\local\metadata\collection $collection
+    ): \core_privacy\local\metadata\collection {
         $collection->add_external_location_link('msteamsapp', [
             'userlang' => 'privacy:metadata:msteamsapp:userlang',
         ], 'privacy:metadata:msteamsapp');
