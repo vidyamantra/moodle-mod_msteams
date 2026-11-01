@@ -35,7 +35,9 @@ jobs:
           ini-values: max_input_vars=5000
           coverage: none
       - name: Install the test tooling
-        run: composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci ci ^4
+        run: |
+          composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci ci ^4
+          sudo locale-gen en_AU.UTF-8
       - name: Install isolated Moodle
         run: ci/bin/moodle-plugin-ci install --plugin ./plugin --db-host=127.0.0.1
         env:
